@@ -90,7 +90,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<LocalDate> getAvailableDatesForDateRange(LocalDate startDate, LocalDate endDate) {
 
         if (Objects.isNull(startDate)) {

@@ -20,6 +20,10 @@ public class MaxAvailabilityDayValidator implements ConstraintValidator<MaxAvail
             maxValue = 30;
         }
 
-        return ChronoUnit.DAYS.between(availabilityRequestParam.getStartDate(), availabilityRequestParam.getEndDate()) <= maxValue;
+        if(!Objects.isNull(availabilityRequestParam.getStartDate()) && !Objects.isNull(availabilityRequestParam.getEndDate())) {
+            return ChronoUnit.DAYS.between(availabilityRequestParam.getStartDate(), availabilityRequestParam.getEndDate()) <= maxValue;
+        }
+
+        return true;
     }
 }
