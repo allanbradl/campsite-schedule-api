@@ -50,6 +50,8 @@ public class ExceptionController {
 
         ex.getBindingResult().getFieldErrors().forEach(field -> details.put(field.getField(), field.getDefaultMessage()));
 
+        ex.getBindingResult().getAllErrors().forEach(field -> details.put(field.getObjectName(), field.getDefaultMessage()));
+
         log.info("error on the request validation {}", details);
 
         return Map.of(DESCRIPTION, details);

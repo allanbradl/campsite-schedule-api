@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -32,6 +31,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional(isolation= Isolation.SERIALIZABLE)
     @Retryable(include = JpaSystemException.class, maxAttempts = 2, backoff=@Backoff(delay = 150, maxDelay = 300))
     public Booking createBooking(BookingDTO bookingDTO) throws BookingDateUnavailableException {
+        //TODO Check if already exist booking for giving email, if yes throws BookingAlreadyExists exception
         var availableDates = getAvailableDatesForDateRange(bookingDTO.getStartDate(), bookingDTO.getEndDate());
 
         var booking = modelMapper.map(bookingDTO, Booking.class);
@@ -58,7 +58,8 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation= Isolation.SERIALIZABLE)
+    @Retryable(include = JpaSystemException.class, maxAttempts = 2, backoff=@Backoff(delay = 300, maxDelay = 500))
     public BookingDTO updateBooking(Long bookingId, BookingDTO bookingDTO) throws BookingNotFoundException, IllegalBookingStateException, BookingDateUnavailableException {
         var foundBooking = bookingRepository.findById(bookingId).orElseThrow(() -> new BookingNotFoundException("Booking with id " + bookingId + " not found!"));
 
@@ -68,14 +69,16 @@ public class BookingServiceImpl implements BookingService {
 
         var availableDatesForDateRange = getAvailableDatesForDateRange(bookingDTO.getStartDate(), bookingDTO.getEndDate());
 
+        Booking booking = modelMapper.map(bookingDTO, Booking.class);
+
+        if(!availableDatesForDateRange.containsAll(booking.getAllDatesFromBookingDate())) {
+            throw new BookingDateUnavailableException("no availability for " + foundBooking.getStartDate() + " to " + foundBooking.getEndDate());
+        }
+
         foundBooking.setEmail(bookingDTO.getEmail());
         foundBooking.setEndDate(bookingDTO.getEndDate());
         foundBooking.setStartDate(bookingDTO.getStartDate());
-        foundBooking.setFullName(bookingDTO.getEmail());
-
-        if(!availableDatesForDateRange.containsAll(foundBooking.getAllDatesFromBookingDate())) {
-            throw new BookingDateUnavailableException("no availability for " + foundBooking.getStartDate() + " to " + foundBooking.getEndDate());
-        }
+        foundBooking.setFullName(bookingDTO.getFullName());
 
         var updatedBooking = bookingRepository.save(foundBooking);
 
@@ -104,9 +107,7 @@ public class BookingServiceImpl implements BookingService {
 
         var bookings = bookingRepository.findAllBookingsByDataRange(startDate, endDate);
 
-        bookings.forEach(b -> {
-            availableDates.removeAll(b.getAllDatesFromBookingDate());
-        });
+        bookings.forEach(b -> availableDates.removeAll(b.getAllDatesFromBookingDate()));
 
         return availableDates;
     }
